@@ -41,12 +41,11 @@ const initialRemembered = {
 };
 
 const fieldClassName =
-  "h-[63px] w-full rounded-[13px] border border-[#CAD5E2] bg-white px-5 text-[20px] leading-[30px] text-[#0A0A0A] outline-none transition placeholder:text-[#0A0A0A80] focus:border-slate-500 focus:ring-2 focus:ring-slate-200";
+  "h-[63px] w-full rounded-[13px] border border-r-muted bg-white px-5 text-body text-r-text outline-none transition placeholder:text-r-secondary focus:border-r-border-focus focus:ring-2 focus:ring-r-card";
 
-const labelClassName = "text-[24px] font-medium leading-none text-[#0A0A0A]";
+const labelClassName = "font-[family-name:var(--font-boska)] text-h3 text-r-text";
 
-const smallLabelClassName =
-  "text-[16px] leading-[24px] font-medium text-[#0A0A0A]";
+const smallLabelClassName = "text-body-2 font-medium text-r-text";
 
 function UploadIcon() {
   return (

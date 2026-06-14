@@ -1,28 +1,11 @@
 'use client';
 
-// src/app/(contributor)/contribute/[inviteToken]/story/page.jsx
-
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import Link from 'next/link';
-
-// ─── Nav ──────────────────────────────────────────────────────────────────────
-
-function ContributorNav({ backHref }) {
-  return (
-    <nav className="flex h-10 items-center justify-between">
-      <span className="text-r-text text-2xl leading-8">Remember</span>
-      <Link href={backHref} className="flex items-center gap-1.5 text-body-2 text-r-secondary transition-colors">
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-        </svg>
-        Back
-      </Link>
-    </nav>
-  );
-}
-
-// ─── Suggestions ──────────────────────────────────────────────────────────────
+import { validateContributorInvite } from '@/services/contributorService.js';
+import ContributorShell from '@/components/contributor/shell/ContributorShell.jsx';
+import ContributorButton from '@/components/contributor/shell/ContributorButton.jsx';
+import { ContributorErrorState, ContributorLoadingState, ContributorPageHeader } from '@/components/contributor/shell/ContributorStates.jsx';
 
 const MOCK_SUGGESTIONS = [
   'Our first time meeting',
@@ -32,19 +15,29 @@ const MOCK_SUGGESTIONS = [
   'What they taught me',
 ];
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function StoryPage() {
   const router = useRouter();
   const { inviteToken } = useParams();
+  const [invite, setInvite] = useState(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Day 9: replace with real memorial name from session
-  const deceasedName = 'John';
+  useEffect(() => {
+    let isMounted = true;
+    validateContributorInvite(inviteToken).then((result) => {
+      if (isMounted) {
+        setInvite(result);
+        setIsLoading(false);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [inviteToken]);
 
   function handleSuggestion(suggestion) {
     setTitle(suggestion);
@@ -59,8 +52,7 @@ export default function StoryPage() {
     setSaving(true);
     setError('');
     try {
-      // Day 9: await saveStory(inviteToken, { title: title.trim(), body: body.trim() });
-      router.push(`/contribute/${inviteToken}/review`);
+      router.push(`/contribute/${inviteToken}/upload`);
     } catch (err) {
       console.error('Story save failed:', err);
       setError('Something went wrong. Please try again.');
@@ -68,26 +60,33 @@ export default function StoryPage() {
     }
   }
 
+  if (isLoading) return <ContributorLoadingState message="Loading story editor..." />;
+  if (!invite || invite.status !== 'valid') {
+    return (
+      <ContributorErrorState
+        title="This invitation is not available"
+        body="Please return to your invitation link and try again."
+        actionHref={`/contribute/${inviteToken}`}
+      />
+    );
+  }
+
   return (
-    <main className="min-h-screen px-6 py-10 sm:px-[50px] bg-r-bg text-r-text">
+    <ContributorShell backHref={`/contribute/${inviteToken}/upload`} contentClassName="gap-10">
+      <ContributorPageHeader
+        title="Upload your memories"
+        subtitle={`Type a story about ${invite.deceased.name}.`}
+      />
+
       <div className="page-shell">
-
-        <ContributorNav backHref={`/contribute/${inviteToken}/upload`} />
-
-        <div className="text-center pt-4">
-          <h1 className="text-h1 text-r-text">Upload your memories</h1>
-          <p className="mt-3 text-body-2 text-r-secondary">Type a story about {deceasedName}.</p>
-        </div>
-
         <div className="flex flex-col gap-3">
-
           <div className="flex items-center justify-between">
             <label className="text-h4 text-r-text">Story title</label>
             <button
               onClick={() => setShowSuggestions(!showSuggestions)}
               className="flex items-center gap-1.5 text-body-2 text-r-text transition-opacity hover:opacity-70"
             >
-              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 2l2.4 7.2H22l-6.2 4.5 2.4 7.2L12 16.4l-6.2 4.5 2.4-7.2L2 9.2h7.6z" />
               </svg>
               Need suggestions?
@@ -95,18 +94,12 @@ export default function StoryPage() {
           </div>
 
           {showSuggestions && (
-            <div
-              className="rounded-xl overflow-hidden shadow-sm bg-r-modal"
-              style={{ border: '1px solid var(--color-r-border)' }}
-            >
+            <div className="overflow-hidden rounded-xl border border-r-border bg-r-modal shadow-sm">
               {MOCK_SUGGESTIONS.map((suggestion) => (
                 <button
                   key={suggestion}
                   onClick={() => handleSuggestion(suggestion)}
-                  className="w-full px-4 py-3 text-left text-body-2 text-r-text transition-colors bg-transparent"
-                  style={{ borderBottom: '1px solid var(--color-r-card)' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-r-card)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  className="w-full border-b border-r-card bg-transparent px-4 py-3 text-left text-body-2 text-r-text transition-colors last:border-b-0 hover:bg-r-card"
                 >
                   {suggestion}
                 </button>
@@ -114,42 +107,29 @@ export default function StoryPage() {
             </div>
           )}
 
-          {/* Title input — border stays inline for focus state swap */}
           <input
             type="text"
             value={title}
             onChange={(e) => { setTitle(e.target.value); setError(''); }}
             placeholder="Our first time meeting"
-            className="w-full rounded-xl px-4 py-4 text-body-1 text-r-text bg-transparent focus:outline-none"
-            style={{ border: '1px solid var(--color-r-border)' }}
-            onFocus={(e) => { e.target.style.borderColor = 'var(--color-r-border-focus)'; }}
-            onBlur={(e) => { e.target.style.borderColor = 'var(--color-r-border)'; }}
+            className="w-full rounded-xl border border-r-border bg-transparent px-4 py-4 text-body-1 text-r-text focus:border-r-border-focus focus:outline-none"
           />
 
-          {/* Body textarea */}
           <textarea
             value={body}
             onChange={(e) => { setBody(e.target.value); setError(''); }}
             placeholder="Write your memory here..."
             rows={12}
-            className="w-full rounded-xl px-4 py-4 text-body-1 text-r-text bg-transparent focus:outline-none resize-none"
-            style={{ border: '1px solid var(--color-r-border)', lineHeight: 1.6 }}
-            onFocus={(e) => { e.target.style.borderColor = 'var(--color-r-border-focus)'; }}
-            onBlur={(e) => { e.target.style.borderColor = 'var(--color-r-border)'; }}
+            className="w-full resize-none rounded-xl border border-r-border bg-transparent px-4 py-4 text-body-1 leading-relaxed text-r-text focus:border-r-border-focus focus:outline-none"
           />
 
-          {error && <p className="text-body-2 text-r-danger">{error}</p>}
+          {error ? <p className="text-body-2 text-r-danger">{error}</p> : null}
         </div>
 
-        <button
-          onClick={handleContinue}
-          disabled={saving}
-          className="w-full rounded-full py-4 text-body-2 font-medium tracking-wide transition-opacity hover:opacity-80 active:opacity-70 disabled:opacity-50 bg-r-btn text-r-btn-text border-none"
-        >
+        <ContributorButton onClick={handleContinue} disabled={saving}>
           {saving ? 'Saving…' : 'Continue'}
-        </button>
-
+        </ContributorButton>
       </div>
-    </main>
+    </ContributorShell>
   );
 }

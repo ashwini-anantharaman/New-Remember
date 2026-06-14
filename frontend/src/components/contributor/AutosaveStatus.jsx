@@ -10,7 +10,7 @@ export default function AutosaveStatus({ status }) {
   const text = statusCopy[status] ?? "";
 
   return (
-    <p className="min-h-6 text-sm leading-6 text-slate-500" aria-live="polite">
+    <p className="min-h-6 text-body-2 text-r-muted" aria-live="polite">
       {text}
     </p>
   );

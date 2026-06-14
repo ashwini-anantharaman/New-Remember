@@ -1,3 +1,3 @@
 export default function ViewerLayout({ children }) {
-  return children;
+  return <div className="bg-r-bg">{children}</div>;
 }

@@ -6,10 +6,19 @@ import {
   getContributorRelationshipDraft,
   saveContributorRelationship,
 } from "@/services/contributorService.js";
+import { CONTRIBUTOR_RELATIONSHIP_OTHER } from "@/lib/contribute/relationshipOptions.js";
 import {
-  CONTRIBUTOR_RELATIONSHIP_OPTIONS,
-  CONTRIBUTOR_RELATIONSHIP_OTHER,
-} from "@/lib/contribute/relationshipOptions.js";
+  CONTRIBUTOR_FAMILY_OPTIONS,
+  CONTRIBUTOR_RELATIONSHIP_CATEGORIES,
+} from "@/lib/contribute/relationshipCategories.js";
+import ContributorShell from "@/components/contributor/shell/ContributorShell.jsx";
+import BoxSelection from "@/components/contributor/shell/BoxSelection.jsx";
+import ContributorButton from "@/components/contributor/shell/ContributorButton.jsx";
+import {
+  ContributorErrorState,
+  ContributorLoadingState,
+  ContributorPageHeader,
+} from "@/components/contributor/shell/ContributorStates.jsx";
 
 const relationshipErrorCopy = {
   invalid: {
@@ -18,11 +27,11 @@ const relationshipErrorCopy = {
   },
   expired: {
     title: "This invitation has expired",
-    body: "The contribution window for this link has passed. The organizer can share a new link if they are still collecting memories.",
+    body: "The contribution window for this link has passed.",
   },
   closed: {
     title: "Contributions are closed",
-    body: "This memorial is not accepting new contributions right now. Thank you for wanting to share a memory.",
+    body: "This memorial is not accepting new contributions right now.",
   },
   error: {
     title: "We could not open your contribution",
@@ -34,78 +43,30 @@ const relationshipErrorCopy = {
   },
 };
 
-function LoadingState() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-white px-6 py-10 text-neutral-950 sm:px-[50px]">
-      <section className="flex flex-col items-center gap-4 text-center" aria-live="polite">
-        <div className="size-12 rounded-full border-2 border-slate-200 border-t-neutral-950" />
-        <p className="text-base leading-6 text-slate-600">Opening your contribution...</p>
-      </section>
-    </main>
-  );
-}
-
 function RelationshipErrorState({ status, inviteToken }) {
   const copy = relationshipErrorCopy[status] ?? relationshipErrorCopy.invalid;
-
   return (
-    <main className="flex min-h-screen items-center justify-center bg-white px-6 py-10 text-neutral-950 sm:px-[50px]">
-      <section className="flex w-full max-w-[560px] flex-col items-center gap-5 text-center">
-        <div className="flex size-16 items-center justify-center rounded-full bg-slate-100 text-2xl font-medium text-slate-600">
-          R
-        </div>
-        <div className="flex flex-col gap-3">
-          <h1 className="text-[32px] font-medium leading-[38px] text-neutral-950 sm:text-[40px] sm:leading-[48px]">
-            {copy.title}
-          </h1>
-          <p className="text-base leading-7 text-slate-600 sm:text-lg">{copy.body}</p>
-        </div>
-        {status === "missing" ? (
-          <a
-            href={`/contribute/${inviteToken}`}
-            className="mt-2 flex h-[52px] items-center justify-center rounded-full bg-neutral-950 px-8 text-base font-bold leading-6 text-white transition hover:bg-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-slate-500"
-          >
-            Return to invitation
-          </a>
-        ) : null}
-      </section>
-    </main>
+    <ContributorErrorState
+      title={copy.title}
+      body={copy.body}
+      actionHref={status === "missing" ? `/contribute/${inviteToken}` : undefined}
+      actionLabel="Return to invitation"
+    />
   );
 }
 
-function RelationshipOption({ relationship, isSelected, onSelect }) {
-  return (
-    <label
-      className={`flex h-[86px] cursor-pointer items-center gap-5 rounded-[20px] border bg-white px-5 text-left transition focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-slate-500 sm:h-[100px] ${
-        isSelected ? "border-neutral-950 shadow-sm" : "border-neutral-950/80 hover:border-neutral-950"
-      }`}
-    >
-      <input
-        type="radio"
-        name="relationshipType"
-        value={relationship}
-        checked={isSelected}
-        onChange={onSelect}
-        className="sr-only"
-      />
-      <span
-        className={`flex size-[34px] shrink-0 items-center justify-center rounded-[5px] border sm:size-[43px] ${
-          isSelected ? "border-neutral-950 bg-neutral-950" : "border-[#90a1b9] bg-white"
-        }`}
-        aria-hidden="true"
-      >
-        {isSelected ? (
-          <span className="h-[14px] w-[8px] rotate-45 border-b-2 border-r-2 border-white" />
-        ) : null}
-      </span>
-      <span className="text-base font-normal leading-6 text-neutral-950">{relationship}</span>
-    </label>
-  );
+function resolveBackHref(inviteToken, session) {
+  const contributorName = session?.contributorName?.trim();
+  if (contributorName && contributorName !== "Anonymous contributor") {
+    return `/contribute/${inviteToken}/public-contributor`;
+  }
+  return `/contribute/${inviteToken}/privacy`;
 }
 
 export default function RelationshipSelector({ inviteToken }) {
   const router = useRouter();
   const [draft, setDraft] = useState(null);
+  const [view, setView] = useState("categories");
   const [relationshipType, setRelationshipType] = useState("");
   const [customLabel, setCustomLabel] = useState("");
   const [errors, setErrors] = useState({});
@@ -124,31 +85,35 @@ export default function RelationshipSelector({ inviteToken }) {
         relationshipDraft = await getContributorRelationshipDraft(inviteToken);
       } catch (error) {
         console.error("Failed to load contributor relationship draft.", error);
-        relationshipDraft = {
-          status: "error",
-          invite: null,
-          session: null,
-        };
+        relationshipDraft = { status: "error", invite: null, session: null };
       }
 
-      if (!isMounted) {
-        return;
-      }
+      if (!isMounted) return;
 
       setDraft(relationshipDraft);
-      setRelationshipType(relationshipDraft?.relationship_type ?? "");
+      const savedType = relationshipDraft?.relationship_type ?? "";
+      setRelationshipType(savedType);
       setCustomLabel(relationshipDraft?.relationship_custom_label ?? "");
+
+      if (CONTRIBUTOR_FAMILY_OPTIONS.includes(savedType)) {
+        setView("family");
+      }
+
       setIsLoading(false);
     }
 
     loadDraft();
-
     return () => {
       isMounted = false;
     };
   }, [inviteToken]);
 
   const isOtherSelected = relationshipType === CONTRIBUTOR_RELATIONSHIP_OTHER;
+  const selectedCategoryId = CONTRIBUTOR_RELATIONSHIP_CATEGORIES.find(
+    (category) =>
+      category.value === relationshipType ||
+      (category.id === "family" && CONTRIBUTOR_FAMILY_OPTIONS.includes(relationshipType)),
+  )?.id;
 
   const validate = () => {
     const nextErrors = {};
@@ -165,33 +130,39 @@ export default function RelationshipSelector({ inviteToken }) {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleRelationshipChange = (eventOrRelationship) => {
-    const nextRelationshipType =
-      typeof eventOrRelationship === "string"
-        ? eventOrRelationship
-        : eventOrRelationship.target.value;
-
-    setRelationshipType(nextRelationshipType);
-    setErrors((current) => ({ ...current, relationshipType: "", customLabel: "" }));
+  const handleCategorySelect = (category) => {
     setSubmitError("");
+    setErrors({});
 
-    if (nextRelationshipType !== CONTRIBUTOR_RELATIONSHIP_OTHER) {
+    if (category.hasSubOptions) {
+      setView("family");
+      setRelationshipType("");
       setCustomLabel("");
+      return;
     }
+
+    if (category.value === CONTRIBUTOR_RELATIONSHIP_OTHER) {
+      setView("categories");
+      setRelationshipType(CONTRIBUTOR_RELATIONSHIP_OTHER);
+      return;
+    }
+
+    setView("categories");
+    setRelationshipType(category.value);
+    setCustomLabel("");
   };
 
-  const handleCustomLabelChange = (event) => {
-    setCustomLabel(event.target.value);
-    setErrors((current) => ({ ...current, customLabel: "" }));
+  const handleFamilySelect = (option) => {
+    setRelationshipType(option);
+    setCustomLabel("");
+    setErrors({});
     setSubmitError("");
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!validate()) {
-      return;
-    }
+    if (!validate()) return;
 
     setIsSaving(true);
     setSubmitError("");
@@ -201,7 +172,7 @@ export default function RelationshipSelector({ inviteToken }) {
         relationshipType,
         relationshipCustomLabel: customLabel,
       });
-      router.push(`/contribute/${inviteToken}/questions`);
+      router.push(`/contribute/${inviteToken}/intro`);
     } catch (error) {
       setSubmitError(
         error instanceof Error
@@ -213,123 +184,113 @@ export default function RelationshipSelector({ inviteToken }) {
   };
 
   if (isLoading) {
-    return <LoadingState />;
+    return <ContributorLoadingState message="Opening your contribution..." />;
   }
 
   if (!draft || draft.status !== "ready") {
     return <RelationshipErrorState status={draft?.status ?? "invalid"} inviteToken={inviteToken} />;
   }
 
-  const selectErrorId = errors.relationshipType ? "contributor-relationship-error" : undefined;
-  const customErrorId = errors.customLabel ? "contributor-relationship-custom-error" : undefined;
+  const privacyBackHref = resolveBackHref(inviteToken, draft.session);
 
   return (
-    <main className="min-h-screen bg-white px-6 py-8 text-neutral-950 sm:px-[50px] sm:py-[50px]">
-      <div className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[1024px] flex-col items-center justify-center gap-8 sm:min-h-[calc(100vh-100px)]">
-        <section className="flex w-full flex-col items-center gap-6 text-center">
-          <div className="flex max-w-[640px] flex-col items-center gap-3">
-            <h1 className="text-[30px] font-medium leading-9 text-neutral-950 sm:text-[36px] sm:leading-10">
-              Your Relationship
-            </h1>
-            <p className="max-w-[512px] text-base leading-6 text-[#45556c]">
-              Help us understand your connection to {draft.invite.deceased.name}.
-            </p>
-          </div>
+    <ContributorShell
+      backHref={view === "family" ? undefined : privacyBackHref}
+      onBack={view === "family" ? () => setView("categories") : undefined}
+      contentClassName="items-center gap-16"
+    >
+      <ContributorPageHeader
+        title={
+          view === "family"
+            ? "Which family relationship fits best?"
+            : "Your relationship"
+        }
+        subtitle={
+          view === "family"
+            ? `Choose how you are related to ${draft.invite.deceased.name}.`
+            : `Help us understand your connection to ${draft.invite.deceased.name}.`
+        }
+      />
 
-          <form
-            onSubmit={handleSubmit}
-            noValidate
-            className="flex w-full flex-col items-stretch gap-4 text-left"
+      <form onSubmit={handleSubmit} noValidate className="flex w-full max-w-[886px] flex-col gap-8">
+        {view === "categories" ? (
+          <div
+            className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3"
+            role="radiogroup"
+            aria-invalid={Boolean(errors.relationshipType)}
+            aria-describedby={errors.relationshipType ? "contributor-relationship-error" : undefined}
           >
-            <fieldset
-              aria-describedby={selectErrorId}
-              className={`rounded-[20px] bg-[#f6f6f6] px-5 py-6 sm:px-10 sm:py-9 ${
-                errors.relationshipType ? "ring-2 ring-red-200" : ""
+            {CONTRIBUTOR_RELATIONSHIP_CATEGORIES.map((category) => (
+              <BoxSelection
+                key={category.id}
+                title={category.label}
+                compact
+                selected={selectedCategoryId === category.id}
+                onSelect={() => handleCategorySelect(category)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div
+            className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3"
+            role="radiogroup"
+            aria-invalid={Boolean(errors.relationshipType)}
+          >
+            {CONTRIBUTOR_FAMILY_OPTIONS.map((option) => (
+              <BoxSelection
+                key={option}
+                title={option}
+                compact
+                selected={relationshipType === option}
+                onSelect={() => handleFamilySelect(option)}
+              />
+            ))}
+          </div>
+        )}
+
+        {isOtherSelected ? (
+          <div className="mx-auto flex w-full max-w-[434px] flex-col gap-2.5">
+            <label htmlFor="contributor-relationship-custom" className="text-h3 font-medium text-r-text">
+              Relationship label
+            </label>
+            <input
+              id="contributor-relationship-custom"
+              name="relationshipCustomLabel"
+              type="text"
+              value={customLabel}
+              onChange={(event) => {
+                setCustomLabel(event.target.value);
+                setErrors((current) => ({ ...current, customLabel: "" }));
+                setSubmitError("");
+              }}
+              placeholder="For example, former student"
+              aria-invalid={Boolean(errors.customLabel)}
+              className={`h-[63px] rounded-[13px] border bg-white px-5 text-body text-r-text outline-none transition placeholder:text-r-secondary focus:border-r-border-focus focus:ring-2 focus:ring-r-card ${
+                errors.customLabel ? "border-r-danger" : "border-r-muted"
               }`}
-            >
-              <legend className="sr-only">Your relationship</legend>
-              <div
-                className="grid grid-cols-1 gap-[10px] lg:grid-cols-2 lg:gap-x-[31px]"
-                role="radiogroup"
-                aria-invalid={Boolean(errors.relationshipType)}
-              >
-                {CONTRIBUTOR_RELATIONSHIP_OPTIONS.map((relationship) => (
-                  <RelationshipOption
-                    key={relationship}
-                    relationship={relationship}
-                    isSelected={relationshipType === relationship}
-                    onSelect={handleRelationshipChange}
-                  />
-                ))}
-              </div>
-              {errors.relationshipType ? (
-                <p
-                  id="contributor-relationship-error"
-                  className="mt-4 text-center text-sm leading-5 text-red-600"
-                >
-                  {errors.relationshipType}
-                </p>
-              ) : null}
-            </fieldset>
-
-            {isOtherSelected ? (
-              <div className="mx-auto flex w-full max-w-[520px] flex-col gap-[10px]">
-                <label
-                  htmlFor="contributor-relationship-custom"
-                  className="text-[17px] font-medium leading-[25px] text-neutral-950"
-                >
-                  Relationship label
-                </label>
-                <input
-                  id="contributor-relationship-custom"
-                  name="relationshipCustomLabel"
-                  type="text"
-                  value={customLabel}
-                  onChange={handleCustomLabelChange}
-                  placeholder="For example, former student"
-                  aria-invalid={Boolean(errors.customLabel)}
-                  aria-describedby={customErrorId}
-                  className={`h-[63px] w-full rounded-[13px] border bg-white px-5 text-xl text-neutral-950 outline-none transition placeholder:text-neutral-950/50 focus:border-slate-500 focus:ring-2 focus:ring-slate-200 ${
-                    errors.customLabel ? "border-red-400" : "border-[#cad5e2]"
-                  }`}
-                />
-                {errors.customLabel ? (
-                  <p
-                    id="contributor-relationship-custom-error"
-                    className="text-sm leading-5 text-red-600"
-                  >
-                    {errors.customLabel}
-                  </p>
-                ) : null}
-              </div>
+            />
+            {errors.customLabel ? (
+              <p className="text-body-2 text-r-danger">{errors.customLabel}</p>
             ) : null}
+          </div>
+        ) : null}
 
-            {submitError ? (
-              <p className="text-center text-sm leading-5 text-red-600" role="alert">
-                {submitError}
-              </p>
-            ) : null}
+        {errors.relationshipType ? (
+          <p id="contributor-relationship-error" className="text-center text-body-2 text-r-danger">
+            {errors.relationshipType}
+          </p>
+        ) : null}
 
-            <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => router.push(`/contribute/${inviteToken}`)}
-                disabled={isSaving}
-                className="flex h-[52px] w-full items-center justify-center rounded-[20px] bg-[#cad5e2] px-8 text-base font-bold leading-6 text-white transition hover:bg-[#b7c5d8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-slate-500 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                Back
-              </button>
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="flex h-[52px] w-full items-center justify-center rounded-[20px] bg-neutral-950 px-8 text-base font-bold leading-6 text-white transition hover:bg-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-slate-500 disabled:cursor-not-allowed disabled:bg-neutral-400"
-              >
-                {isSaving ? "Saving..." : "Continue"}
-              </button>
-            </div>
-          </form>
-        </section>
-      </div>
-    </main>
+        {submitError ? (
+          <p className="text-center text-body-2 text-r-danger" role="alert">
+            {submitError}
+          </p>
+        ) : null}
+
+        <ContributorButton type="submit" disabled={isSaving}>
+          {isSaving ? "Saving..." : "Continue"}
+        </ContributorButton>
+      </form>
+    </ContributorShell>
   );
 }

@@ -5,10 +5,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
-import Link from 'next/link';
 import { deletePhoto, getContributorSummary, uploadPhotos } from '@/lib/api';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
+import ContributorShell from '@/components/contributor/shell/ContributorShell.jsx';
+import ContributorButton from '@/components/contributor/shell/ContributorButton.jsx';
+import { ContributorPageHeader } from '@/components/contributor/shell/ContributorStates.jsx';
 
 const PHOTO_ACCEPT = 'image/*,.heic,.heif,.jpg,.jpeg,.png,.webp';
 const MAX_PHOTO_BYTES = 50 * 1024 * 1024;
@@ -43,26 +43,7 @@ function createSelectedPhoto(file, index) {
   };
 }
 
-// ─── Nav ──────────────────────────────────────────────────────────────────────
-
-function ContributorNav({ backHref }) {
-  return (
-    <nav className="flex h-10 items-center justify-between">
-      <span className="text-r-text text-2xl leading-8">Remember</span>
-      <Link
-        href={backHref}
-        className="flex items-center gap-1.5 text-body-2 text-r-secondary transition-colors"
-      >
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-        </svg>
-        Back
-      </Link>
-    </nav>
-  );
-}
-
-// ─── Drop Zone ────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 // disabled prop — Sungjun's logic
 // border + backgroundColor dynamic — CSS vars inline
 
@@ -304,7 +285,7 @@ export default function PhotosPage() {
   }
 
   function handleContinue() {
-    router.push(`/contribute/${inviteToken}/voice`);
+    router.push(`/contribute/${inviteToken}/upload`);
   }
 
   // Load existing photos on mount
@@ -344,17 +325,13 @@ export default function PhotosPage() {
   const continueLabel = uploadedCount > 0 ? 'Continue' : 'Skip photos for now';
 
   return (
-    <main className="min-h-screen px-6 py-10 sm:px-[50px] bg-r-bg text-r-text">
+    <ContributorShell backHref={`/contribute/${inviteToken}/upload`} contentClassName="gap-10">
+      <ContributorPageHeader
+        title="Upload your memories"
+        subtitle="Add photos from your camera roll. You can select one photo or several at once."
+      />
+
       <div className="page-shell">
-
-        <ContributorNav backHref={`/contribute/${inviteToken}/upload`} />
-
-        <div className="text-center">
-          <h1 className="text-h1 text-r-text">Upload your memories</h1>
-          <p className="mt-2 text-body-2 text-r-secondary">
-            Add photos from your camera roll. You can select one photo or several at once.
-          </p>
-        </div>
 
         <DropZone onFiles={handleFiles} disabled={isUploading} />
 
@@ -431,16 +408,11 @@ export default function PhotosPage() {
           </p>
         ) : null}
 
-        <button
-          type="button"
-          onClick={handleContinue}
-          disabled={!canContinue}
-          className="w-full rounded-full py-4 text-body-2 font-medium tracking-wide transition-opacity hover:opacity-80 active:opacity-70 disabled:cursor-not-allowed disabled:opacity-55 bg-r-btn text-r-btn-text border-none"
-        >
+        <ContributorButton onClick={handleContinue} disabled={!canContinue}>
           {isUploading ? 'Uploading photos...' : hasUnuploadedSelection ? 'Upload selected photos to continue' : continueLabel}
-        </button>
+        </ContributorButton>
 
       </div>
-    </main>
+    </ContributorShell>
   );
 }

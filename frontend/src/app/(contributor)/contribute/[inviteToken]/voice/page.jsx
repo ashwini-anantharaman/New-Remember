@@ -4,7 +4,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import Link from 'next/link';
 import {
   ALLOWED_AUDIO_EXTENSIONS,
   MAX_AUDIO_FILE_SIZE_BYTES,
@@ -12,6 +11,9 @@ import {
   getContributorSummary,
   uploadVoice,
 } from '@/lib/api';
+import ContributorShell from '@/components/contributor/shell/ContributorShell.jsx';
+import ContributorButton from '@/components/contributor/shell/ContributorButton.jsx';
+import { ContributorPageHeader } from '@/components/contributor/shell/ContributorStates.jsx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -52,22 +54,6 @@ function formatDuration(seconds) {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-// ─── Nav ──────────────────────────────────────────────────────────────────────
-
-function ContributorNav({ backHref }) {
-  return (
-    <nav className="flex h-10 items-center justify-between">
-      <span className="text-r-text text-2xl leading-8">Remember</span>
-      <Link href={backHref} className="flex items-center gap-1.5 text-body-2 text-r-secondary transition-colors">
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-        </svg>
-        Back
-      </Link>
-    </nav>
-  );
 }
 
 // ─── Audio Row ────────────────────────────────────────────────────────────────
@@ -344,8 +330,8 @@ export default function VoicePage() {
     setRecordings((prev) => prev.map((r) => (r.id === id ? { ...r, duration_seconds: durationSeconds } : r)));
   }
 
-  function handleContinue() { router.push(`/contribute/${inviteToken}/review`); }
-  function handleSkip() { router.push(`/contribute/${inviteToken}/review`); }
+  function handleContinue() { router.push(`/contribute/${inviteToken}/upload`); }
+  function handleSkip() { router.push(`/contribute/${inviteToken}/upload`); }
 
   // Load existing voice recordings on mount
   useEffect(() => {
@@ -372,15 +358,13 @@ export default function VoicePage() {
   }, []);
 
   return (
-    <main className="min-h-screen px-6 py-10 sm:px-[50px] bg-r-bg text-r-text">
+    <ContributorShell backHref={`/contribute/${inviteToken}/upload`} contentClassName="gap-10">
+      <ContributorPageHeader
+        title="Upload your memories"
+        subtitle="Upload a voice memo below."
+      />
+
       <div className="page-shell">
-
-        <ContributorNav backHref={`/contribute/${inviteToken}/photos`} />
-
-        <div className="text-center">
-          <h1 className="text-h1 text-r-text">Upload your memories</h1>
-          <p className="mt-2 text-body-2 text-r-secondary">Upload a voice memo below.</p>
-        </div>
 
         {/* Upload zone */}
         <div>
@@ -463,20 +447,14 @@ export default function VoicePage() {
           </div>
         )}
 
-        <div className="flex flex-col gap-3">
-          <button
-            onClick={handleContinue}
-            disabled={uploading}
-            className="w-full rounded-full py-4 text-body-2 font-medium tracking-wide transition-opacity hover:opacity-80 active:opacity-70 disabled:opacity-55 bg-r-btn text-r-btn-text border-none"
-          >
+        <div className="flex flex-col items-center gap-3">
+          <ContributorButton onClick={handleContinue} disabled={uploading}>
             Continue
-          </button>
+          </ContributorButton>
           {recordings.length === 0 && (
             <button
               onClick={handleSkip}
-              className="w-full py-3 text-caption transition-colors text-r-muted"
-              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-r-text)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-r-muted)'; }}
+              className="w-full max-w-[434px] py-3 text-caption transition-colors text-r-muted hover:text-r-text"
             >
               Skip - I don&apos;t have any voice recordings
             </button>
@@ -488,6 +466,6 @@ export default function VoicePage() {
       {pendingFile && (
         <TitleModal fileName={pendingFile.name} onConfirm={handleTitleConfirm} onCancel={() => setPendingFile(null)} />
       )}
-    </main>
+    </ContributorShell>
   );
 }

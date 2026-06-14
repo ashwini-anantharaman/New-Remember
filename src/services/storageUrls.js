@@ -74,8 +74,8 @@ async function resolveOutputMediaUrls(supabase, output) {
         )
         return {
           ...slide,
-          photo_url: photoUrl,
-          url: photoUrl,
+          photo_url: photoUrl || slide.photo_url || slide.url || null,
+          url: photoUrl || slide.url || slide.photo_url || null,
           audio_url: audioUrl || slide.audio_url,
           narration_audio_url: narrationAudioUrl || slide.narration_audio_url,
         }
@@ -89,7 +89,15 @@ async function resolveOutputMediaUrls(supabase, output) {
       nodes: await Promise.all(
         resolved.constellation.nodes.map(async (node) => {
           const photoUrls = await resolveUrlList(supabase, node.photo_urls || [])
-          return { ...node, photo_urls: photoUrls.filter(Boolean) }
+          const coverPhotoUrl = await resolveStorageUrl(
+            supabase,
+            node.cover_photo_url || node.photo_urls?.[0],
+          )
+          return {
+            ...node,
+            photo_urls: photoUrls.filter(Boolean),
+            cover_photo_url: coverPhotoUrl || photoUrls.find(Boolean) || null,
+          }
         }),
       ),
     }
@@ -115,7 +123,7 @@ async function resolveOutputMediaUrls(supabase, output) {
         const photos = await Promise.all(
           (album.photos || []).map(async (photo) => {
             const url = await resolveStorageUrl(supabase, photo.url || photo.storage_path)
-            return { ...photo, url }
+            return { ...photo, url: url || photo.url || photo.storage_path || null }
           }),
         )
         return {

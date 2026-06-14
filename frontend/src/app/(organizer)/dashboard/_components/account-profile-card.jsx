@@ -1,11 +1,6 @@
+import Link from "next/link";
 import MemorialCoverImage from "@/components/memorial/MemorialCoverImage.jsx";
-import { isBrowserImageUrl } from "@/lib/memorialCoverImage.js";
-
-const badgeClasses = {
-  collecting: "bg-[#F8E7AE] text-[#5A4300]",
-  generating: "bg-[#CFE6F6] text-[#14415B]",
-  complete: "bg-[#D9EFD4] text-[#1D4D22]",
-};
+import MemorialStatusTag from "@/components/organizer/shell/MemorialStatusTag.jsx";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "long",
@@ -13,93 +8,57 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
 });
 
-function formatYear(dateString) {
-  if (!dateString) {
-    return null;
-  }
-
-  return new Date(dateString).getFullYear();
-}
-
 function formatLastUpdated(dateString) {
-  if (!dateString) {
-    return "Recently updated";
-  }
-
+  if (!dateString) return "Recently updated";
   return dateFormatter.format(new Date(dateString));
 }
 
-function formatStatus(status) {
-  if (!status) {
-    return "Unknown";
-  }
-
-  return status.charAt(0).toUpperCase() + status.slice(1);
-}
-
 function MemorialPreview({ memorial }) {
-  if (isBrowserImageUrl(memorial.cover_photo_url)) {
-    return (
-      <div className="relative h-[210px] w-full overflow-hidden rounded-[20px] border border-[#D7DBE2] bg-[#E8EDF3]">
-        <MemorialCoverImage
-          src={memorial.cover_photo_url}
-          name={memorial.subject_name}
-          alt={`Cover photo for ${memorial.subject_name}`}
-          fill
-          rounded="rounded-[20px]"
-          className="h-full w-full"
-          fallbackClassName="bg-[#E8EDF3] text-[#5F6848] text-4xl"
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="relative h-[210px] w-full overflow-hidden rounded-[20px] border border-[#D7DBE2] bg-white">
-      <span className="absolute inset-0 border-t border-[#D7DBE2]" />
-      <span className="absolute left-0 top-0 h-full w-full origin-top-left rotate-[20deg] border-t border-[#D7DBE2]" />
-      <span className="absolute left-0 top-0 h-full w-full origin-top-right -rotate-[20deg] border-t border-[#D7DBE2]" />
+    <div className="relative h-[200px] w-full overflow-hidden rounded-[20px] border border-r-muted bg-r-card">
+      <MemorialCoverImage
+        src={memorial.cover_photo_url}
+        name={memorial.subject_name}
+        alt={`Cover photo for ${memorial.subject_name}`}
+        fill
+        className="h-full w-full object-cover"
+        fallbackClassName="bg-r-card text-r-muted text-4xl"
+      />
     </div>
   );
 }
 
-function StatusBadge({ status }) {
+export default function AccountProfileCard({ memorial }) {
   return (
-    <span
-      className={`inline-flex min-h-[30px] items-center rounded-[8px] px-4 text-[16px] leading-[24px] ${
-        badgeClasses[status] ?? "bg-[#D9D9D9] text-[#262626]"
-      }`}
-    >
-      {formatStatus(status)}
-    </span>
+    <article className="flex h-[350px] flex-col gap-2.5 rounded-[20px] border border-r-muted bg-transparent">
+      <MemorialPreview memorial={memorial} />
+      <div className="flex flex-1 items-start justify-between gap-4 px-5 pb-5">
+        <div className="flex min-w-0 flex-col justify-between self-stretch">
+          <p className="font-[family-name:var(--font-boska)] text-h3 text-r-text">
+            {memorial.subject_name}
+          </p>
+          <p className="text-h4 text-r-secondary">
+            Last Updated: {formatLastUpdated(memorial.updated_at ?? memorial.created_at)}
+          </p>
+        </div>
+        <MemorialStatusTag status={memorial.status} className="shrink-0" />
+      </div>
+    </article>
   );
 }
 
-export default function AccountProfileCard({ memorial }) {
-  const birthYear = formatYear(memorial.date_of_birth);
-  const passingYear = formatYear(memorial.date_of_passing);
-  const dateRange =
-    birthYear || passingYear
-      ? `${birthYear ?? "Unknown"} - ${passingYear ?? "Unknown"}`
-      : "Dates unavailable";
-
+export function CreateMemorialCard() {
   return (
-    <article className="rounded-[20px] border border-[#D7DBE2] bg-white p-0 shadow-[0_1px_10px_rgba(0,0,0,0.04)]">
-      <MemorialPreview memorial={memorial} />
-      <div className="flex flex-col gap-3 px-6 py-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-h3 text-[#0A0A0A]">{memorial.subject_name}</h2>
-            <p className="mt-2 text-body-1 text-(--text-color-2)">
-              {dateRange}
-            </p>
-          </div>
-          <StatusBadge status={memorial.status} />
-        </div>
-        <p className="text-body-1 text-(--text-color-2)">
-          Last Updated: {formatLastUpdated(memorial.updated_at ?? memorial.created_at)}
-        </p>
-      </div>
-    </article>
+    <Link
+      href="/memorial/create"
+      className="flex h-[350px] flex-col items-center justify-center rounded-[20px] border border-r-muted px-8 text-center transition hover:border-r-text hover:bg-r-card/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-r-border-focus"
+    >
+      <span className="flex size-[50px] items-center justify-center text-r-text">
+        <svg width="50" height="50" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+        </svg>
+      </span>
+      <span className="mt-2.5 font-[family-name:var(--font-boska)] text-h3 text-r-text">Create new</span>
+    </Link>
   );
 }

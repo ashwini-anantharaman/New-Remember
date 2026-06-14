@@ -3,17 +3,9 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { usePathname } from "next/navigation";
 
-const warmBackgroundSteps = ["/photos", "/voice", "/upload", "/story"];
-
-function getContributorBackground(pathname) {
-  const isWarmStep = warmBackgroundSteps.some((step) => pathname?.endsWith(step));
-  return isWarmStep ? "#F0EAE2" : "#ffffff";
-}
-
 export default function ContributorStepTransition({ children }) {
   const pathname = usePathname();
   const shouldReduceMotion = useReducedMotion();
-  const backgroundColor = getContributorBackground(pathname);
 
   const variants = shouldReduceMotion
     ? {
@@ -28,7 +20,7 @@ export default function ContributorStepTransition({ children }) {
       };
 
   return (
-    <div className="min-h-screen overflow-x-hidden" style={{ backgroundColor }}>
+    <div className="min-h-screen overflow-x-hidden bg-r-bg">
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={pathname}

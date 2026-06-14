@@ -4,10 +4,16 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { deletePhoto, deleteVoice } from "@/lib/api.js";
 import { getContributorReviewDraft, submitContributorDraft } from "@/services/contributorService.js";
+import ContributorShell from "@/components/contributor/shell/ContributorShell.jsx";
+import ContributorButton from "@/components/contributor/shell/ContributorButton.jsx";
+import {
+  ContributorErrorState,
+  ContributorLoadingState,
+  ContributorPageHeader,
+} from "@/components/contributor/shell/ContributorStates.jsx";
 
 // ─── Error copy ───────────────────────────────────────────────────────────────
 
@@ -20,58 +26,14 @@ const reviewErrorCopy = {
   error: { title: "We could not open your review", body: "Something went wrong while loading your contribution. Please try again in a moment." },
 };
 
-// ─── Nav ──────────────────────────────────────────────────────────────────────
-
-function ContributorNav({ backHref }) {
-  return (
-    <nav className="flex h-10 items-center justify-between">
-      <span className="text-2xl leading-8 text-r-text">Remember</span>
-      <Link href={backHref} className="flex items-center gap-1.5 text-body-2 text-r-secondary transition-colors">
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-        </svg>
-        Back
-      </Link>
-    </nav>
-  );
-}
-
-// ─── Loading state ────────────────────────────────────────────────────────────
-
-function LoadingState() {
-  return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-10 sm:px-[50px] bg-r-bg">
-      <section className="flex flex-col items-center gap-4 text-center" aria-live="polite">
-        <div
-          className="size-12 rounded-full border-2"
-          style={{ borderColor: 'var(--color-r-border)', borderTopColor: 'var(--color-r-text)' }}
-        />
-        <p className="text-body-2 text-r-secondary">Opening your review...</p>
-      </section>
-    </main>
-  );
-}
-
-// ─── Error state ──────────────────────────────────────────────────────────────
-
 function ReviewErrorState({ status, inviteToken }) {
   const copy = reviewErrorCopy[status] ?? reviewErrorCopy.error;
-  const href = status === "missing" ? `/contribute/${inviteToken}` : null;
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-10 sm:px-[50px] bg-r-bg">
-      <section className="flex w-full max-w-[560px] flex-col items-center gap-5 text-center">
-        <div className="flex size-16 items-center justify-center rounded-full text-2xl font-medium bg-r-card text-r-muted">R</div>
-        <div className="flex flex-col gap-3">
-          <h1 className="text-h1 text-r-text">{copy.title}</h1>
-          <p className="text-body-2 text-r-secondary">{copy.body}</p>
-        </div>
-        {href ? (
-          <Link href={href} className="mt-2 flex h-[52px] items-center justify-center rounded-full px-8 text-body-2 font-medium transition hover:opacity-80 bg-r-btn text-r-btn-text">
-            Return to invitation
-          </Link>
-        ) : null}
-      </section>
-    </main>
+    <ContributorErrorState
+      title={copy.title}
+      body={copy.body}
+      actionHref={status === "missing" ? `/contribute/${inviteToken}` : undefined}
+    />
   );
 }
 
@@ -96,13 +58,13 @@ function formatRelationship(contributor) {
 
 function ReviewSection({ title, actionHref, actionLabel, children }) {
   return (
-    <section className="rounded-[20px] p-6 border border-r-border bg-transparent">
+    <section className="rounded-[20px] border border-r-muted bg-transparent p-6">
       <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="text-h3 text-r-text">{title}</h2>
+        <h2 className="font-[family-name:var(--font-boska)] text-h3 text-r-text">{title}</h2>
         {actionHref ? (
-          <Link href={actionHref} className="shrink-0 text-body-2 font-medium transition-colors text-r-secondary">
+          <a href={actionHref} className="shrink-0 text-body-2 font-medium text-r-secondary transition hover:text-r-text">
             {actionLabel}
-          </Link>
+          </a>
         ) : null}
       </div>
       {children}
@@ -168,7 +130,7 @@ export default function ReviewPage() {
     }
   }
 
-  if (isLoading) return <LoadingState />;
+  if (isLoading) return <ContributorLoadingState message="Opening your review..." />;
   if (!draft || draft.status !== "ready") {
     return <ReviewErrorState status={draft?.status ?? "error"} inviteToken={inviteToken} />;
   }
@@ -179,17 +141,13 @@ export default function ReviewPage() {
   const voiceCount = summary.voice.length;
 
   return (
-    <main className="min-h-screen px-6 py-10 sm:px-[50px] bg-r-bg text-r-text">
+    <ContributorShell backHref={`/contribute/${inviteToken}/upload`} contentClassName="gap-10">
+      <ContributorPageHeader
+        title="Review contributions"
+        subtitle={`Please review your contribution before submitting it for ${invite.deceased.name}.`}
+      />
+
       <div className="page-shell">
-
-        <ContributorNav backHref={`/contribute/${inviteToken}/voice`} />
-
-        <header className="text-center">
-          <h1 className="text-h1 text-r-text">Review contributions</h1>
-          <p className="mx-auto mt-2 max-w-[512px] text-body-2 text-r-secondary">
-            Please review your contribution before submitting it for {invite.deceased.name}.
-          </p>
-        </header>
 
         {/* Contributor */}
         <ReviewSection title="Contributor" actionHref={`/contribute/${inviteToken}/relationship`} actionLabel="Edit">
@@ -199,8 +157,8 @@ export default function ReviewPage() {
           </div>
         </ReviewSection>
 
-        {/* Questionnaire */}
-        <ReviewSection title={`Questionnaire (${answerCount})`} actionHref={`/contribute/${inviteToken}/questions`} actionLabel="Edit">
+        {/* Questionnaire answers combined with final review */}
+        <ReviewSection title={`Interview answers (${answerCount})`} actionHref={`/contribute/${inviteToken}/questions`} actionLabel="Edit">
           {answerCount > 0 ? (
             <div className="flex flex-col gap-4">
               {summary.responses.map((response) =>
@@ -284,29 +242,15 @@ export default function ReviewPage() {
         ) : null}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {/* Upload more → /upload (3-card selector) */}
-          <Link
-            href={`/contribute/${inviteToken}/upload`}
-            className="flex h-[56px] items-center justify-center rounded-full text-body-2 font-medium transition-colors text-r-text"
-            style={{ border: '1px solid var(--color-r-border)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-r-card)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-          >
+          <ContributorButton href={`/contribute/${inviteToken}/upload`} variant="secondary">
             Upload more
-          </Link>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="flex h-[56px] items-center justify-center rounded-full text-body-2 font-medium transition disabled:cursor-not-allowed disabled:opacity-50 bg-r-btn text-r-btn-text border-none"
-            onMouseEnter={(e) => { if (!isSubmitting) e.currentTarget.style.opacity = "0.85"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
-          >
+          </ContributorButton>
+          <ContributorButton onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? "Submitting..." : submitError ? "Retry submit" : "Submit"}
-          </button>
+          </ContributorButton>
         </div>
 
       </div>
-    </main>
+    </ContributorShell>
   );
 }

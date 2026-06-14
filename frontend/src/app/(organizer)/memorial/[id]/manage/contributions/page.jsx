@@ -1,3 +1,5 @@
-export default function MemorialContributionsPage() {
-  return null;
+import { redirect } from "next/navigation";
+
+export default function MemorialContributionsPage({ params }) {
+  redirect(`/memorial/${params.id}/manage`);
 }

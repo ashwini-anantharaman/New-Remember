@@ -3,14 +3,19 @@ const express = require('express')
 const router = express.Router()
 const supabase = require('../supabase')
 const authMiddleware = require('../middleware/auth')
-const { resolveOutputMediaUrls } = require('../services/storageUrls')
 const {
   buildMemoryCorpus,
-  extractThemes,
+  extractConstellationThemes,
+  buildVisionPhotoAlbums,
   analyzePhotoWithVision,
   assignPhotosToThemes,
+  seedPhotoThemeAssignments,
+  filterThemesWithPhotoSupport,
   composeStorySlideshow,
-  composeThemeQuotes,
+  buildContributorRelationshipInsights,
+  buildConstellationNodes,
+  ensurePhotoThemeCoverage,
+  normalizeConstellationEdges,
 } = require('../services/memorialGeneration')
 const { processVoiceRecording } = require('../services/voiceProcessing')
 
@@ -72,16 +77,7 @@ async function runPipelines(memorialId, jobId) {
     )
     console.log('[Pipeline] data — responses:', responses?.length, 'photos:', photos?.length)
 
-    await updateJob(jobId, 20, 'Finding themes from questionnaire memories...')
-    const themes = await extractThemes(
-      responses || [],
-      contributors || [],
-      memorial.subject_name,
-      memorial,
-    )
-    console.log('[Pipeline] themes found:', themes.length)
-
-    await updateJob(jobId, 40, 'Understanding photos...')
+    await updateJob(jobId, 20, 'Analyzing photos with vision...')
     let analyzedPhotos = []
     if (photos && photos.length > 0) {
       for (const photo of photos) {
@@ -107,14 +103,31 @@ async function runPipelines(memorialId, jobId) {
           analyzedPhotos.push({ ...photo, analysis: null, matched_theme_ids: [] })
         }
       }
+    }
 
-      await updateJob(jobId, 50, 'Matching photos to themes from your memories...')
+    console.log('[Pipeline] photos analyzed:', analyzedPhotos.length)
+
+    await updateJob(jobId, 55, 'Discovering constellation themes from memories and photos...')
+    let { themes, edges: constellationEdges } = await extractConstellationThemes(
+      responses || [],
+      contributors || [],
+      memorial.subject_name,
+      memorial,
+      analyzedPhotos,
+    )
+    console.log('[Pipeline] constellation themes found:', themes.length)
+
+    if (analyzedPhotos.length > 0 && themes.length > 0) {
+      await updateJob(jobId, 60, 'Connecting photos to constellation themes...')
+      analyzedPhotos = seedPhotoThemeAssignments(analyzedPhotos, themes)
       analyzedPhotos = await assignPhotosToThemes(
         analyzedPhotos,
         themes,
         memoryCorpus,
         memorial.subject_name,
       )
+      analyzedPhotos = ensurePhotoThemeCoverage(analyzedPhotos, themes)
+      themes = filterThemesWithPhotoSupport(themes, analyzedPhotos)
 
       for (const photo of analyzedPhotos) {
         await supabase
@@ -133,9 +146,16 @@ async function runPipelines(memorialId, jobId) {
           .eq('id', photo.id)
       }
     }
-    console.log('[Pipeline] photos analyzed:', analyzedPhotos.length)
 
-    await updateJob(jobId, 65, 'Transcribing voice memos...')
+    await updateJob(jobId, 65, 'Organizing photo albums by visual scene...')
+    const albums = await buildVisionPhotoAlbums(
+      analyzedPhotos,
+      contributors || [],
+      memorial.subject_name,
+    )
+    console.log('[Pipeline] vision albums created:', albums.length)
+
+    await updateJob(jobId, 68, 'Transcribing voice memos...')
     const enrichedRecordings = []
     for (const recording of recordings || []) {
       let row = recording
@@ -199,7 +219,7 @@ async function runPipelines(memorialId, jobId) {
       })
       .filter((v) => v.intro_line && v.storage_path)
 
-    await updateJob(jobId, 70, 'Composing the memorial story...')
+    await updateJob(jobId, 70, 'Ordering photos chronologically and composing biography...')
     let storySlides = await composeStorySlideshow({
       subjectName: memorial.subject_name,
       memorial,
@@ -227,61 +247,33 @@ async function runPipelines(memorialId, jobId) {
     })
 
     await updateJob(jobId, 85, 'Building the constellation map...')
-    const constellationNodes = []
-    for (const theme of themes) {
-      const themePhotos = analyzedPhotos.filter((p) =>
-        p.matched_theme_ids?.includes(theme.id),
-      )
-      const themeQuotes = await composeThemeQuotes(theme, responses || [], contributors || [])
-      constellationNodes.push({
-        id: theme.id,
-        label: theme.label,
-        summary: theme.summary,
-        prominence_score: theme.prominence_score,
-        quotes: themeQuotes,
-        photo_urls: themePhotos.slice(0, 6).map((p) => p.storage_path),
-      })
-    }
+    const { contributorInsights, typeInsights } = await buildContributorRelationshipInsights(
+      responses || [],
+      contributors || [],
+      memorial.subject_name,
+    )
 
-    const edges =
-      themes.length > 1
-        ? themes.slice(0, -1).map((theme, i) => ({
-            source: theme.id,
-            target: themes[i + 1].id,
-            relationship_type: contributors?.[0]?.relationship_type || 'friend',
-            weight: 0.6,
-          }))
-        : []
-
-    const albums = themes.map((theme) => {
-      const themePhotos = analyzedPhotos.filter((p) =>
-        p.matched_theme_ids?.includes(theme.id),
-      )
-      return {
-        name: theme.label,
-        album_name: theme.label,
-        cover_photo_url: themePhotos[0]?.storage_path || null,
-        photo_count: themePhotos.length,
-        photos: themePhotos.map((p) => {
-          const contributor = contributors?.find((c) => c.id === p.contributor_id)
-          return {
-            id: p.id,
-            url: p.storage_path,
-            caption: p.caption,
-            year: p.taken_at ? new Date(p.taken_at).getFullYear().toString() : null,
-            contributor_name: contributor?.name || 'A contributor',
-          }
-        }),
-      }
+    const constellationNodes = await buildConstellationNodes({
+      themes,
+      analyzedPhotos,
+      responses: responses || [],
+      contributors: contributors || [],
     })
+
+    const edges = normalizeConstellationEdges(constellationEdges, themes)
 
     await updateJob(jobId, 95, 'Saving your memorial...')
-    const outputPayload = await resolveOutputMediaUrls(supabase, {
+    const outputPayload = {
       story: storySlides,
-      constellation: { nodes: constellationNodes, edges },
+      constellation: {
+        nodes: constellationNodes,
+        edges,
+        relationship_insights: contributorInsights,
+        relationship_type_insights: typeInsights,
+      },
       voices,
       photos: { albums },
-    })
+    }
     await saveOutput(memorialId, jobId, 'full', outputPayload)
 
     await supabase

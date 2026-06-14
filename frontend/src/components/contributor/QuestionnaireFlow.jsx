@@ -4,6 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import QuestionCard from "@/components/contributor/QuestionCard.jsx";
 import QuestionProgress from "@/components/contributor/QuestionProgress.jsx";
+import ContributorShell from "@/components/contributor/shell/ContributorShell.jsx";
+import ContributorButton from "@/components/contributor/shell/ContributorButton.jsx";
+import {
+  ContributorErrorState,
+  ContributorLoadingState,
+  ContributorPageHeader,
+} from "@/components/contributor/shell/ContributorStates.jsx";
 import { CONTRIBUTOR_QUESTIONNAIRE_QUESTIONS } from "@/lib/contribute/questionnaireQuestions.js";
 import {
   getContributorQuestionnaireDraft,
@@ -38,17 +45,6 @@ const questionnaireErrorCopy = {
   },
 };
 
-function LoadingState() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-white px-6 py-10 text-neutral-950 sm:px-[50px]">
-      <section className="flex flex-col items-center gap-4 text-center" aria-live="polite">
-        <div className="size-12 rounded-full border-2 border-slate-200 border-t-neutral-950" />
-        <p className="text-base leading-6 text-slate-600">Opening your questions...</p>
-      </section>
-    </main>
-  );
-}
-
 function QuestionnaireErrorState({ status, inviteToken }) {
   const copy = questionnaireErrorCopy[status] ?? questionnaireErrorCopy.invalid;
   const href =
@@ -58,27 +54,12 @@ function QuestionnaireErrorState({ status, inviteToken }) {
   const linkText = status === "relationship_missing" ? "Choose relationship" : "Return to invitation";
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-white px-6 py-10 text-neutral-950 sm:px-[50px]">
-      <section className="flex w-full max-w-[560px] flex-col items-center gap-5 text-center">
-        <div className="flex size-16 items-center justify-center rounded-full bg-slate-100 text-2xl font-medium text-slate-600">
-          R
-        </div>
-        <div className="flex flex-col gap-3">
-          <h1 className="text-[32px] font-medium leading-[38px] text-neutral-950 sm:text-[40px] sm:leading-[48px]">
-            {copy.title}
-          </h1>
-          <p className="text-base leading-7 text-slate-600 sm:text-lg">{copy.body}</p>
-        </div>
-        {status === "missing" || status === "relationship_missing" ? (
-          <a
-            href={href}
-            className="mt-2 flex h-[52px] items-center justify-center rounded-full bg-neutral-950 px-8 text-base font-bold leading-6 text-white transition hover:bg-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-slate-500"
-          >
-            {linkText}
-          </a>
-        ) : null}
-      </section>
-    </main>
+    <ContributorErrorState
+      title={copy.title}
+      body={copy.body}
+      actionHref={status === "missing" || status === "relationship_missing" ? href : undefined}
+      actionLabel={linkText}
+    />
   );
 }
 
@@ -217,7 +198,7 @@ export default function QuestionnaireFlow({ inviteToken }) {
 
         const resumeIndex = getResumeQuestionIndex(restoredAnswers);
         if (resumeIndex >= CONTRIBUTOR_QUESTIONNAIRE_QUESTIONS.length) {
-          router.replace(`/contribute/${inviteToken}/photos`);
+          router.replace(`/contribute/${inviteToken}/upload`);
           return;
         }
 
@@ -436,6 +417,8 @@ export default function QuestionnaireFlow({ inviteToken }) {
       return;
     }
 
+    handleModeChange("speech");
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
@@ -532,7 +515,7 @@ export default function QuestionnaireFlow({ inviteToken }) {
   }, [saveAnswer]);
 
   if (isLoading) {
-    return <LoadingState />;
+    return <ContributorLoadingState message="Opening your questions..." />;
   }
 
   if (!draft || draft.status !== "ready") {
@@ -540,55 +523,35 @@ export default function QuestionnaireFlow({ inviteToken }) {
   }
 
   return (
-    <main className="min-h-screen bg-white px-6 py-8 text-neutral-950 sm:px-[50px] sm:py-[50px]">
-      <div className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-[760px] flex-col justify-center gap-7 sm:min-h-[calc(100vh-100px)]">
-        <section className="flex flex-col gap-4 text-center">
-          <p className="text-sm font-medium uppercase leading-5 text-slate-500">
-            Contribution for {draft.invite.deceased.name}
-          </p>
-          <p className="mx-auto max-w-[560px] text-base leading-7 text-slate-600 sm:text-lg">
-            Share what you remember in whatever shape it comes. You can skip a question and come
-            back as you go.
-          </p>
-        </section>
+    <ContributorShell
+      backHref={isFirstQuestion ? `/contribute/${inviteToken}/intro` : undefined}
+      onBack={!isFirstQuestion ? () => moveToQuestion(currentIndex - 1) : undefined}
+      contentClassName="items-center gap-16"
+    >
+      <ContributorPageHeader
+        title={currentQuestion.prompt}
+        subtitle={currentQuestion.helperText}
+      />
 
-        <QuestionProgress
-          currentIndex={currentIndex}
-          totalQuestions={CONTRIBUTOR_QUESTIONNAIRE_QUESTIONS.length}
-        />
+      <QuestionProgress
+        currentIndex={currentIndex}
+        totalQuestions={CONTRIBUTOR_QUESTIONNAIRE_QUESTIONS.length}
+      />
 
-        <QuestionCard
-          question={currentQuestion}
-          answerText={currentAnswer.answer_text}
-          inputMode={currentAnswer.input_mode}
-          autosaveStatus={autosaveStatus}
-          isListening={isListening}
-          speechSupported={speechSupported}
-          onAnswerChange={handleAnswerChange}
-          onAnswerBlur={handleAnswerBlur}
-          onModeChange={handleModeChange}
-          onToggleListening={handleToggleListening}
-        />
+      <QuestionCard
+        question={currentQuestion}
+        answerText={currentAnswer.answer_text}
+        autosaveStatus={autosaveStatus}
+        isListening={isListening}
+        speechSupported={speechSupported}
+        onAnswerChange={handleAnswerChange}
+        onAnswerBlur={handleAnswerBlur}
+        onToggleListening={handleToggleListening}
+      />
 
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-          <button
-            type="button"
-            onClick={() => moveToQuestion(currentIndex - 1)}
-            disabled={isFirstQuestion || isNavigating}
-            className="flex h-[56px] items-center justify-center rounded-full border border-slate-300 bg-white px-8 text-base font-bold leading-6 text-neutral-950 transition hover:border-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-slate-500 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-          >
-            Previous
-          </button>
-          <button
-            type="button"
-            onClick={handleContinue}
-            disabled={isNavigating}
-            className="flex h-[56px] items-center justify-center rounded-full bg-neutral-950 px-10 text-base font-bold leading-6 text-white transition hover:bg-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-slate-500 disabled:cursor-not-allowed disabled:bg-neutral-400"
-          >
-            {isNavigating ? "Saving..." : isLastQuestion ? "Continue" : "Next"}
-          </button>
-        </div>
-      </div>
-    </main>
+      <ContributorButton onClick={handleContinue} disabled={isNavigating}>
+        {isNavigating ? "Saving..." : isLastQuestion ? "Continue" : "Next question"}
+      </ContributorButton>
+    </ContributorShell>
   );
 }

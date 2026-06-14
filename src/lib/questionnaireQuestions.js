@@ -1,13 +1,30 @@
 /** Mirror of frontend contributor questions — used by AI pipeline for context. */
 const CONTRIBUTOR_QUESTIONNAIRE_QUESTIONS = [
-  { id: 'small_habit', prompt: 'What is one small habit, phrase, or ritual of theirs that you remember clearly?' },
-  { id: 'story_you_tell', prompt: 'What is a story about them that you often find yourself telling?' },
-  { id: 'how_they_made_people_feel', prompt: 'How did they make people feel when they were around?' },
-  { id: 'something_others_may_not_know', prompt: 'What is something about them that other people may not have known?' },
-  { id: 'vivid_moment', prompt: 'What is one moment with them that still feels vivid to you?' },
-  { id: 'what_they_taught', prompt: 'What did they teach you, directly or indirectly?' },
-  { id: 'human_detail', prompt: 'What is something funny, stubborn, strange, or very human about them?' },
-  { id: 'what_to_remember', prompt: 'What do you hope people remember about them?' },
+  { id: 'hobbies_and_loves', prompt: 'What were their hobbies and what did they love doing?' },
+  {
+    id: 'what_made_them_unique',
+    prompt:
+      'What is something about them that made them unique? Could be something funny, stubborn, strange, or just very human about them.',
+  },
+  {
+    id: 'how_you_knew_them',
+    prompt:
+      'How did you know this person and what kind of memories did you share together? What kind of person were they from your eyes and what would you want the world to remember about this person?',
+  },
+  {
+    id: 'significant_moments',
+    prompt:
+      'What were the most significant moments you remember about them during the time you knew them?',
+  },
+  {
+    id: 'character_and_personality',
+    prompt: "How would you describe this person's character and personality?",
+  },
+  {
+    id: 'their_life',
+    prompt:
+      'Tell us about their life — for example, their career, the roles they played, their family, their accomplishments, or the things they achieved in life.',
+  },
 ]
 
 const QUESTION_PROMPT_BY_ID = Object.fromEntries(

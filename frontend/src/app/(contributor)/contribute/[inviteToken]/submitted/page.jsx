@@ -1,71 +1,39 @@
 "use client";
 
-// frontend/src/app/(contributor)/contribute/[inviteToken]/submitted/page.jsx
-
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
 import MemorialCoverImage from "@/components/memorial/MemorialCoverImage.jsx";
 import { getContributorSubmittedDraft } from "@/services/contributorService.js";
-
-// ─── Error copy ────────────────────────────────────────────────────────────────
+import ContributorShell from "@/components/contributor/shell/ContributorShell.jsx";
+import ContributorButton from "@/components/contributor/shell/ContributorButton.jsx";
+import {
+  ContributorErrorState,
+  ContributorLoadingState,
+  ContributorPageHeader,
+} from "@/components/contributor/shell/ContributorStates.jsx";
 
 const submittedErrorCopy = {
   invalid: { title: "This invitation link is not available", body: "Please check the link or ask the memorial organizer to send a new invitation." },
-  expired: { title: "This invitation has expired", body: "The contribution window for this link has passed. The organizer can share a new link if they are still collecting memories." },
-  closed: { title: "Contributions are closed", body: "This memorial is not accepting new contributions right now. Thank you for wanting to share a memory." },
+  expired: { title: "This invitation has expired", body: "The contribution window for this link has passed." },
+  closed: { title: "Contributions are closed", body: "This memorial is not accepting new contributions right now." },
   missing: { title: "We could not find your contribution draft", body: "Please return to the invitation page and enter your name before submitting memories." },
-  error: { title: "We could not open this confirmation", body: "Something went wrong while loading this page. Your organizer can confirm that your contribution was received." },
+  error: { title: "We could not open this confirmation", body: "Something went wrong while loading this page." },
 };
-
-// ─── Loading state ─────────────────────────────────────────────────────────────
-
-function LoadingState() {
-  return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-10 sm:px-[50px] bg-r-bg">
-      <section className="flex flex-col items-center gap-4 text-center" aria-live="polite">
-        <div
-          className="size-12 rounded-full border-2"
-          style={{ borderColor: 'var(--color-r-border)', borderTopColor: 'var(--color-r-text)' }}
-        />
-        <p className="text-body-2 text-r-secondary">Opening confirmation...</p>
-      </section>
-    </main>
-  );
-}
-
-// ─── Error state ───────────────────────────────────────────────────────────────
 
 function SubmittedErrorState({ status, inviteToken }) {
   const copy = submittedErrorCopy[status] ?? submittedErrorCopy.error;
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-10 sm:px-[50px] bg-r-bg">
-      <section className="flex w-full max-w-[560px] flex-col items-center gap-5 text-center">
-        <div className="flex size-16 items-center justify-center rounded-full text-2xl font-medium bg-r-card text-r-muted">
-          R
-        </div>
-        <div className="flex flex-col gap-3">
-          <h1 className="text-h1 text-r-text">{copy.title}</h1>
-          <p className="text-body-2 text-r-secondary">{copy.body}</p>
-        </div>
-        {status === "missing" ? (
-          <Link
-            href={`/contribute/${inviteToken}`}
-            className="mt-2 flex h-[52px] items-center justify-center rounded-full px-8 text-body-2 font-medium transition hover:opacity-80 bg-r-btn text-r-btn-text"
-          >
-            Return to invitation
-          </Link>
-        ) : null}
-      </section>
-    </main>
+    <ContributorErrorState
+      title={copy.title}
+      body={copy.body}
+      actionHref={status === "missing" ? `/contribute/${inviteToken}` : undefined}
+    />
   );
 }
 
-// ─── Memorial Avatar — logic unchanged ────────────────────────────────────────
-
 function MemorialAvatar({ name, photoUrl }) {
   return (
-    <div className="relative size-[180px] overflow-hidden">
+    <div className="relative size-[180px] overflow-hidden rounded-full">
       <MemorialCoverImage
         src={photoUrl}
         name={name}
@@ -76,8 +44,6 @@ function MemorialAvatar({ name, photoUrl }) {
     </div>
   );
 }
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SubmittedPage() {
   const { inviteToken } = useParams();
@@ -101,48 +67,25 @@ export default function SubmittedPage() {
     return () => { isMounted = false; };
   }, [inviteToken]);
 
-  if (isLoading) return <LoadingState />;
+  if (isLoading) return <ContributorLoadingState message="Opening confirmation..." />;
   if (!draft || draft.status !== "ready") {
     return <SubmittedErrorState status={draft?.status ?? "error"} inviteToken={inviteToken} />;
   }
 
-  const subjectName = draft.invite.deceased.name; // kept for MemorialAvatar if re-enabled
+  const subjectName = draft.invite.deceased.name;
 
   return (
-    <main className="min-h-screen px-6 py-10 sm:px-[50px] bg-r-bg">
-      <div className="mx-auto flex min-h-[calc(100vh-80px)] w-full max-w-[680px] flex-col gap-8">
+    <ContributorShell contentClassName="items-center gap-16">
+      <ContributorPageHeader
+        title="Submission completed"
+        subtitle="Thank you for sharing these precious moments. Your memories will be treasured and help keep their spirit alive."
+      />
 
-        <nav className="flex h-10 items-center justify-between">
-          <span className="text-2xl leading-8 text-r-text">Remember</span>
-        </nav>
+      <MemorialAvatar name={subjectName} photoUrl={draft.invite.deceased.photoUrl} />
 
-        <section className="flex flex-1 flex-col items-center justify-center gap-8 pb-16 text-center">
-
-          <div className="flex max-w-[560px] flex-col items-center gap-4">
-            <h1 className="text-h1 text-r-text">Submission completed</h1>
-            <p className="text-body-2 text-r-secondary">
-              Thank you for sharing these precious moments. Your memories will be treasured
-              and help keep their spirit alive.
-            </p>
-          </div>
-
-          <div className="relative" style={{ width: "180px", height: "180px" }}>
-            <MemorialAvatar
-              name={subjectName}
-              photoUrl={draft.invite.deceased.photoUrl}
-            />
-          </div>
-
-          <button
-            onClick={() => window.location.href = `/contribute/${inviteToken}/upload`}
-            className="rounded-full text-body-2 font-medium tracking-wide transition-opacity hover:opacity-80 bg-r-btn text-r-btn-text border-none"
-            style={{ width: '320px', padding: '16px 0', cursor: 'pointer' }}
-          >
-            Continue
-          </button>
-
-        </section>
-      </div>
-    </main>
+      <ContributorButton href={`/contribute/${inviteToken}/upload`}>
+        Upload more memories
+      </ContributorButton>
+    </ContributorShell>
   );
 }

@@ -1,44 +1,38 @@
 export const CONTRIBUTOR_QUESTIONNAIRE_QUESTIONS = [
   {
-    id: "small_habit",
-    prompt: "What is one small habit, phrase, or ritual of theirs that you remember clearly?",
-    helperText: "Small details are often the things people miss most.",
-  },
-  {
-    id: "story_you_tell",
-    prompt: "What is a story about them that you often find yourself telling?",
-    helperText: "It can be funny, ordinary, imperfect, or meaningful.",
-  },
-  {
-    id: "how_they_made_people_feel",
-    prompt: "How did they make people feel when they were around?",
+    id: "hobbies_and_loves",
+    prompt: "What were their hobbies and what did they love doing?",
     helperText:
-      "Think about the feeling they left in a room, a family, a workplace, or a friendship.",
+      "Think about what lit them up — weekend routines, passions, or things they never tired of.",
   },
   {
-    id: "something_others_may_not_know",
-    prompt: "What is something about them that other people may not have known?",
-    helperText: "This could be a dream, a struggle, a kindness, or a side of them you saw.",
+    id: "what_made_them_unique",
+    prompt:
+      "What is something about them that made them unique? Could be something funny, stubborn, strange, or just very human about them.",
+    helperText: "Quirks and imperfections often capture who someone really was.",
   },
   {
-    id: "vivid_moment",
-    prompt: "What is one moment with them that still feels vivid to you?",
-    helperText: "Where were you? What do you remember seeing, hearing, or feeling?",
-  },
-  {
-    id: "what_they_taught",
-    prompt: "What did they teach you, directly or indirectly?",
+    id: "how_you_knew_them",
+    prompt:
+      "How did you know this person and what kind of memories did you share together? What kind of person were they from your eyes and what would you want the world to remember about this person?",
     helperText:
-      "This does not need to be formal advice. It can be something you learned by watching them.",
+      "There is no wrong way to answer — share your relationship, your memories, and how you hope they are remembered.",
   },
   {
-    id: "human_detail",
-    prompt: "What is something funny, stubborn, strange, or very human about them?",
-    helperText: "Memorials feel more real when they include quirks, not only praise.",
+    id: "significant_moments",
+    prompt:
+      "What were the most significant moments you remember about them during the time you knew them?",
+    helperText: "These can be milestones, quiet afternoons, or moments that still stay with you.",
   },
   {
-    id: "what_to_remember",
-    prompt: "What do you hope people remember about them?",
-    helperText: "Share what feels most important to carry forward.",
+    id: "character_and_personality",
+    prompt: "How would you describe this person's character and personality?",
+    helperText: "Warm, funny, fierce, gentle — use whatever words feel true to you.",
+  },
+  {
+    id: "their_life",
+    prompt:
+      "Tell us about their life — for example, their career, the roles they played, their family, their accomplishments, or the things they achieved in life.",
+    helperText: "Career, family, roles, milestones — share the story of their life as you knew it.",
   },
 ];

@@ -12,7 +12,7 @@ export default function LoginPage() {
           Don&apos;t have an account?{" "}
           <Link
             href="/signup"
-            className="font-bold hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-slate-400"
+            className="font-medium text-r-text underline-offset-4 hover:underline"
           >
             Sign Up
           </Link>
