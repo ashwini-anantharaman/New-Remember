@@ -8,7 +8,7 @@ import ViewerNav from "@/components/viewer/shell/ViewerNav";
 import ViewerShell from "@/components/viewer/shell/ViewerShell";
 import ViewerButton from "@/components/viewer/shell/ViewerButton";
 import ViewerBottomNav from "@/components/viewer/shell/ViewerBottomNav";
-import { ViewerLandingProfile, ViewerCompactProfile } from "@/components/viewer/shell/ViewerProfileHeader";
+import { ViewerLandingProfile } from "@/components/viewer/shell/ViewerProfileHeader";
 import ViewerMemorialExperience from "@/components/viewer/ViewerMemorialExperience";
 
 function experienceStorageKey(shareToken) {
@@ -116,15 +116,12 @@ export default function SharePage() {
           {loading ? (
             <LoadingSkeleton />
           ) : (
-            <div className="mt-10 flex flex-col gap-10">
-              {activeTab === "Slideshow" ? <ViewerCompactProfile memorial={memorial} /> : null}
+            <div className="mt-10">
               <ViewerMemorialExperience
                 activeTab={activeTab}
                 output={output}
                 memorial={memorial}
                 contributors={contributors}
-                graphWidth={800}
-                graphHeight={800}
               />
             </div>
           )}

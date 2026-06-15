@@ -16,9 +16,10 @@ import OrganizerOutputsTab from "@/components/organizer/manage/OrganizerOutputsT
 import OrganizerShareModal from "@/components/organizer/manage/OrganizerShareModal.jsx";
 
 const MAIN_TABS = ["Archive", "Contributions", "Outputs"];
-const GENERATION_POLL_INTERVAL_MS = 1500;
-const GENERATION_MAX_POLL_ATTEMPTS = 60;
-const GENERATION_SUCCESS_STATUSES = new Set(["complete", "completed", "succeeded", "success"]);
+const GENERATION_POLL_INTERVAL_MS = 2000;
+// Backend pipeline timeout defaults to 8 minutes (AI_PIPELINE_TIMEOUT_MS).
+const GENERATION_MAX_POLL_ATTEMPTS = 250;
+const GENERATION_SUCCESS_STATUSES = new Set(["complete", "completed", "succeeded", "success", "done"]);
 const GENERATION_FAILURE_STATUSES = new Set(["failed", "error"]);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -118,7 +119,12 @@ export default function MemorialManagePage() {
         }
         const finalStatus = String(latestJob?.status || "").toLowerCase();
         if (!GENERATION_SUCCESS_STATUSES.has(finalStatus)) {
-          throw new Error("Generation is taking longer than expected. Please try refreshing the outputs shortly.");
+          // Job may still be running server-side — try loading output anyway.
+          const maybeOutput = await loadOutput({ fallbackToMock: process.env.NODE_ENV !== "production" });
+          if (maybeOutput) return;
+          throw new Error(
+            `Generation is still running (${latestJob?.progress ?? 0}% — ${latestJob?.current_step || "processing"}). Wait a minute and refresh the page.`,
+          );
         }
       }
 

@@ -10,7 +10,6 @@ import { getMemorialContributors } from '@/services/contributorService';
 import { mockMemorials } from '@/data/mockMemorials.js';
 import ViewerNav from "@/components/viewer/shell/ViewerNav";
 import ViewerBottomNav from "@/components/viewer/shell/ViewerBottomNav";
-import { ViewerCompactProfile } from "@/components/viewer/shell/ViewerProfileHeader";
 import ViewerMemorialExperience from "@/components/viewer/ViewerMemorialExperience";
 
 function ShareModal({ onClose, memorialId }) {
@@ -223,15 +222,12 @@ export default function MemorialOutputPage() {
           ) : error ? (
             <OutputError onRetry={load} />
           ) : (
-            <div className="flex flex-col gap-10">
-              {activeTab === 'Slideshow' ? <ViewerCompactProfile memorial={memorial} /> : null}
-              <ViewerMemorialExperience
-                activeTab={activeTab}
-                output={output}
-                memorial={memorial}
-                contributors={contributors}
-              />
-            </div>
+            <ViewerMemorialExperience
+              activeTab={activeTab}
+              output={output}
+              memorial={memorial}
+              contributors={contributors}
+            />
           )}
         </div>
       </main>
